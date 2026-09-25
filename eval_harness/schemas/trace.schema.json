@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trace_v1",
+  "title": "Trace v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_id",
+    "harness",
+    "session_id",
+    "success",
+    "exit_code",
+    "error",
+    "turns",
+    "metrics",
+    "events"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "case_id": {
+      "type": "string"
+    },
+    "harness": {
+      "type": "string"
+    },
+    "session_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "exit_code": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "turns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "index",
+          "prompt",
+          "final_text"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "final_text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wall_ms",
+        "first_frame_ms",
+        "first_frame_kind",
+        "num_turns",
+        "num_tool_calls",
+        "thinking_present"
+      ],
+      "properties": {
+        "wall_ms": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "api_ms": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "first_frame_ms": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "first_frame_kind": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "text",
+            "tool_use",
+            null
+          ]
+        },
+        "num_turns": {
+          "type": "integer"
+        },
+        "num_tool_calls": {
+          "type": "integer"
+        },
+        "cost_usd": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "thinking_present": {
+          "type": "boolean"
+        },
+        "num_llm_calls": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t_ms",
+          "turn",
+          "role",
+          "kind",
+          "payload"
+        ],
+        "properties": {
+          "t_ms": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "turn": {
+            "type": "integer"
+          },
+          "role": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "extensions": {
+      "type": "object"
+    },
+    "llm_calls": {
+      "type": "array",
+      "description": "Per LLM /v1/messages call captured via local gateway (full request/response).",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    }
+  }
+}

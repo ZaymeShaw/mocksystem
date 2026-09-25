@@ -1,0 +1,3 @@
+# One-case Phase B smoke (PI_A01_B = original A01 prompt).
+profile_path: profiles/pi_coding_local_relay.yaml
+bundle_path: bundles/pi_smoke_PI_A01_B.jsonl

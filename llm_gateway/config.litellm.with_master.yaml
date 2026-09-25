@@ -1,0 +1,21 @@
+model_list:
+  - model_name: os.environ/UPSTREAM_MODEL
+    litellm_params:
+      # start_litellm.sh sets UPSTREAM_LITELLM_MODEL=${UPSTREAM_PROTOCOL}/${UPSTREAM_MODEL}
+      model: os.environ/UPSTREAM_LITELLM_MODEL
+      api_base: os.environ/UPSTREAM_API_BASE
+      api_key: os.environ/UPSTREAM_API_KEY
+      drop_params: true
+  - model_name: "*"
+    litellm_params:
+      model: os.environ/UPSTREAM_LITELLM_MODEL
+      api_base: os.environ/UPSTREAM_API_BASE
+      api_key: os.environ/UPSTREAM_API_KEY
+      drop_params: true
+
+litellm_settings:
+  drop_params: true
+  callbacks: custom_callbacks.proxy_handler_instance
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

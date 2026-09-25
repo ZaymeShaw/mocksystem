@@ -1,0 +1,9 @@
+{
+  "registry_dir": "run/attribution",
+  "lanes": {
+    "insurance_1": {
+      "chat_url": "http://127.0.0.1:18063/v1/chat",
+      "gateway_key_env": "INSURANCE_LITELLM_MASTER_KEY"
+    }
+  }
+}

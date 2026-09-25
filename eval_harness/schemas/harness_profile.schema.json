@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "harness_profile_v1",
+  "title": "Harness Profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "harness",
+    "project_cwd",
+    "bin"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "profile_id": {
+      "type": "string"
+    },
+    "harness": {
+      "type": "string"
+    },
+    "project_cwd": {
+      "type": "string"
+    },
+    "bin": {
+      "type": "string"
+    },
+    "agent_md": {
+      "type": "string"
+    },
+    "mcp_config": {
+      "type": "string"
+    },
+    "permission_mode": {
+      "type": "string"
+    },
+    "dangerously_skip_permissions": {
+      "type": "boolean"
+    },
+    "timeout_sec_per_turn": {
+      "type": "integer"
+    },
+    "concurrency": {
+      "type": "integer"
+    },
+    "workspace_isolation": {
+      "enum": [
+        "none",
+        "copy_per_case"
+      ]
+    },
+    "session_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "new_session_per_case": {
+          "type": "boolean"
+        },
+        "resume_within_case": {
+          "type": "boolean"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "eval_runs_dir": {
+          "type": "string"
+        },
+        "keep_raw_stream": {
+          "type": "boolean"
+        }
+      }
+    },
+    "adapter": {
+      "type": "object"
+    },
+    "fingerprint": {
+      "type": "object"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "extensions": {
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$DIR"
+# shellcheck disable=SC1091
+source "$DIR/.venv/bin/activate"
+
+PROFILE=""
+FORCE_RESTART=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --profile|-p)
+      PROFILE="${2:-}"
+      shift 2
+      ;;
+    --restart|--force)
+      FORCE_RESTART=1
+      shift
+      ;;
+    -h|--help)
+      cat <<'HELP'
+Usage: ./start_litellm.sh [--profile NAME] [--restart]
+
+  (no args)           load .env (current default upstream)
+  --profile NAME      load .env.NAME instead (e.g. aliyun_maas, penguin)
+  --restart           stop existing listener even if healthy (needed when switching)
+
+Examples:
+  ./stop_litellm.sh && ./start_litellm.sh
+  ./stop_litellm.sh && ./start_litellm.sh --profile aliyun_maas
+  ./start_litellm.sh --profile aliyun_maas --restart
+HELP
+      exit 0
+      ;;
+    *)
+      # bare name as profile for convenience: ./start_litellm.sh aliyun_maas
+      if [[ -z "$PROFILE" && -f "$DIR/.env.$1" ]]; then
+        PROFILE="$1"
+        shift
+      else
+        echo "unknown arg: $1 (try --help)" >&2
+        exit 2
+      fi
+      ;;
+  esac
+done
+
+ENV_FILE="$DIR/.env"
+if [[ -n "$PROFILE" ]]; then
+  ENV_FILE="$DIR/.env.$PROFILE"
+  if [[ ! -f "$ENV_FILE" ]]; then
+    echo "profile env missing: $ENV_FILE" >&2
+    echo "available:" >&2
+    ls -1 "$DIR".env.* 2>/dev/null | sed 's|.*/.env.||' | grep -v example || true
+    # fix ls path
+    ls -1 "$DIR"/.env.* 2>/dev/null | xargs -n1 basename | sed 's/^\.env\.//' | grep -v '^example$' >&2 || true
+    exit 1
+  fi
+fi
+
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+  echo "loaded env: $ENV_FILE"
+else
+  echo "warning: no env file at $ENV_FILE" >&2
+fi
+
+export UPSTREAM_API_BASE="${UPSTREAM_API_BASE:-https://dashscope.aliyuncs.com/apps/anthropic}"
+export UPSTREAM_API_KEY="${UPSTREAM_API_KEY:-}"
+export UPSTREAM_PROTOCOL="${UPSTREAM_PROTOCOL:-anthropic}"
+export UPSTREAM_MODEL="${UPSTREAM_MODEL:-deepseek-v4-flash-0731}"
+export UPSTREAM_LITELLM_MODEL="${UPSTREAM_PROTOCOL}/${UPSTREAM_MODEL}"
+export ANTHROPIC_API_KEY="$UPSTREAM_API_KEY"
+
+export LITELLM_HOST="${LITELLM_HOST:-127.0.0.1}"
+export LITELLM_PORT="${LITELLM_PORT:-4001}"
+export LITELLM_MASTER_KEY="${LITELLM_MASTER_KEY:-}"
+export LLM_GATEWAY_LOG_DIR="${LLM_GATEWAY_LOG_DIR:-$DIR/logs}"
+export LLM_ATTRIBUTION_CONFIG="${LLM_ATTRIBUTION_CONFIG:-$DIR/attribution_lanes.json}"
+
+if [[ -z "$UPSTREAM_API_KEY" ]]; then
+  echo "UPSTREAM_API_KEY missing — set it in $ENV_FILE" >&2
+  exit 1
+fi
+if [[ -z "$LITELLM_MASTER_KEY" ]]; then
+  echo "LITELLM_MASTER_KEY missing — set it in $ENV_FILE" >&2
+  exit 1
+fi
+
+export PYTHONPATH="$DIR${PYTHONPATH:+:$PYTHONPATH}"
+if [[ "${LITELLM_STDOUT_DEBUG:-0}" == "1" ]]; then
+  export LITELLM_LOG="${LITELLM_LOG:-DEBUG}"
+else
+  export LITELLM_LOG=INFO
+fi
+mkdir -p "$DIR/logs" "$DIR/run"
+
+ACTIVE_FILE="$DIR/run/active_profile"
+PREV_PROFILE=""
+[[ -f "$ACTIVE_FILE" ]] && PREV_PROFILE="$(cat "$ACTIVE_FILE" 2>/dev/null || true)"
+NEW_PROFILE="${PROFILE:-default}"
+
+# Switching profiles requires restart even if port looks healthy
+if [[ -n "$PREV_PROFILE" && "$PREV_PROFILE" != "$NEW_PROFILE" ]]; then
+  FORCE_RESTART=1
+  echo "profile change: $PREV_PROFILE -> $NEW_PROFILE (will restart)"
+fi
+
+CFG="${LITELLM_CONFIG:-$DIR/config.litellm.with_master.yaml}"
+if [[ ! -f "$CFG" ]]; then CFG="$DIR/config.yaml"; fi
+export LITELLM_CONFIG="$CFG"
+
+healthy=0
+if curl -fsS -m 2 "http://${LITELLM_HOST}:${LITELLM_PORT}/v1/models" \
+    -H "Authorization: Bearer ${LITELLM_MASTER_KEY}" >/dev/null 2>&1; then
+  healthy=1
+fi
+
+if [[ "$healthy" -eq 1 && "$FORCE_RESTART" -eq 0 ]]; then
+  python3 "$DIR/sync_mock_run_settings.py"
+  if ! python3 - "$LLM_ATTRIBUTION_CONFIG" "$DIR/run/litellm.pid" <<'PY'
+import hashlib, json, pathlib, sys
+try:
+    cfg = pathlib.Path(sys.argv[1]).resolve()
+    config = json.loads(cfg.read_text())
+    marker_path = (cfg.parent / config.get("registry_dir", "run/attribution") / "gateway_ready.json").resolve()
+    marker = json.loads(marker_path.read_text())
+    pid = int(pathlib.Path(sys.argv[2]).read_text())
+    assert marker["pid"] == pid
+    assert marker["config_path"] == str(cfg)
+    assert marker["config_sha256"] == hashlib.sha256(cfg.read_bytes()).hexdigest()
+except (OSError, ValueError, KeyError, AssertionError):
+    sys.exit(1)
+PY
+  then
+    FORCE_RESTART=1
+    echo "attribution callback not ready on current listener; restarting"
+  fi
+fi
+
+if [[ "$healthy" -eq 1 && "$FORCE_RESTART" -eq 0 ]]; then
+  echo "litellm already healthy on http://${LITELLM_HOST}:${LITELLM_PORT} (profile=$NEW_PROFILE)"
+  echo "$NEW_PROFILE" >"$ACTIVE_FILE"
+  echo "$ENV_FILE" >"$DIR/run/active_env_file"
+  exit 0
+fi
+
+# stop leftovers
+if [[ -f "$DIR/run/litellm.pid" ]]; then
+  old="$(cat "$DIR/run/litellm.pid" || true)"
+  if [[ -n "${old:-}" ]] && kill -0 "$old" 2>/dev/null; then
+    echo "stopping litellm pid=$old"
+    if ! kill "$old" 2>/dev/null; then
+      echo "cannot stop litellm pid=$old; leaving current gateway and artifacts unchanged" >&2
+      exit 1
+    fi
+    kill -- -"$old" 2>/dev/null || true
+    sleep 1
+  fi
+  rm -f "$DIR/run/litellm.pid"
+fi
+if command -v lsof >/dev/null 2>&1; then
+  for p in $(lsof -nP -iTCP:"$LITELLM_PORT" -sTCP:LISTEN -t 2>/dev/null || true); do
+    echo "killing leftover listener pid=$p on :$LITELLM_PORT"
+    if ! kill "$p" 2>/dev/null; then
+      echo "cannot stop listener pid=$p; leaving diagnostic log unchanged" >&2
+      exit 1
+    fi
+  done
+  sleep 1
+  if lsof -nP -iTCP:"$LITELLM_PORT" -sTCP:LISTEN -t 2>/dev/null | grep -q .; then
+    echo "listener still owns :$LITELLM_PORT; refusing to truncate diagnostic log" >&2
+    exit 1
+  fi
+fi
+
+python3 "$DIR/sync_mock_run_settings.py"
+: >"$DIR/logs/litellm.stdout.log"
+
+python3 "$DIR/_detach_litellm.py"
+
+echo "$NEW_PROFILE" >"$ACTIVE_FILE"
+echo "$ENV_FILE" >"$DIR/run/active_env_file"
+echo "started profile=$NEW_PROFILE"
+echo "upstream=$UPSTREAM_API_BASE protocol=$UPSTREAM_PROTOCOL model=$UPSTREAM_MODEL litellm_model=$UPSTREAM_LITELLM_MODEL"

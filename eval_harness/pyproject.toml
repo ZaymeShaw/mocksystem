@@ -1,0 +1,12 @@
+[project]
+name = "eval-harness"
+version = "0.1.0"
+description = "Claude Code batch eval harness (traces + Excel, no scoring)"
+requires-python = ">=3.10"
+dependencies = ["openpyxl>=3.1.0", "PyYAML>=6.0"]
+
+[project.scripts]
+eval-harness = "eval_harness.run:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

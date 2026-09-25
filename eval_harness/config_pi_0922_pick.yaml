@@ -1,0 +1,4 @@
+# Pi pick: PDF-authoritative 0922 prompts, PI_* ids for ledger isolation.
+profile_path: profiles/pi_coding_local_relay.yaml
+bundle_path: bundles/pi_pick_PI_A01_Q2_C20_Q2.jsonl
+dataset_path: data/120题-仅问句版-0922.md

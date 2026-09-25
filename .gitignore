@@ -1,0 +1,38 @@
+# Local configuration and credentials
+**/.env
+**/.env.*
+!**/.env.example
+**/.mcp.json
+**/.claude/
+.codex/
+
+# Local runtimes and generated output
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.DS_Store
+**/node_modules/
+**/*.pyc
+/backups/
+/eval_runs/
+/eval_harness/data/
+/eval_harness/bundles/
+/var/
+/llm_gateway/logs/
+/llm_gateway/run/
+/mock_run/backups/
+/mock_run/eval_runs/
+/mock_run/projects/
+/mock_run/session-env/
+/mock_run/sessions/
+/mock_run/shell-snapshots/
+/mock_run/plugins/
+/mock_run/.last-cleanup
+
+# Local snapshots and packages
+*.bak
+*.bak_*
+*.draft_patched_*
+*.tgz
+*.zip
+/eval_harness/--
