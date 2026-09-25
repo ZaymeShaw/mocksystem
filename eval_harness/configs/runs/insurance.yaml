@@ -1,0 +1,3 @@
+# Same eval_harness.run entry point as Claude and Pi.
+profile_path: ../profiles/insurance.yaml
+bundle_path: ../../bundles/120_prompt_only_v1.jsonl

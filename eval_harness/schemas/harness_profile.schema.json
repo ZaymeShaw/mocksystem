@@ -7,9 +7,7 @@
   "required": [
     "schema_version",
     "profile_id",
-    "harness",
-    "project_cwd",
-    "bin"
+    "harness"
   ],
   "properties": {
     "schema_version": {
@@ -86,6 +84,15 @@
     },
     "extensions": {
       "type": "object"
+    },
+    "idle_timeout_sec_per_turn": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "turn_max_attempts": {
+      "type": "integer",
+      "minimum": 1
     }
-  }
+  },
+  "description": "CLI profiles provide project_cwd and bin; service adapters can omit both."
 }

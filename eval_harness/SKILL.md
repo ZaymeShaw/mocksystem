@@ -15,7 +15,7 @@ description: >-
 Scripts freeze only these contracts (see `schemas/`):
 
 1. **Dataset Bundle** (`bundles/*.jsonl`) — cases + turns
-2. **Harness Profile** (`profiles/*.yaml`) — cwd / bin / agent / mcp / permissions
+2. **Harness Profile** (`configs/profiles/*.yaml`) — cwd / bin / agent / mcp / permissions
 3. **Trace** (`eval_runs/<run>/cases/<id>/trace.json`) — normalized events + metrics
 
 Markdown/xlsx/飞书 layouts are **not** runner input. Import them into a Bundle first.
@@ -31,14 +31,15 @@ Markdown/xlsx/飞书 layouts are **not** runner input. Import them into a Bundle
 
 - Mac project cwd from Profile (`project_cwd`)
 - Auth only via cwd local settings — never copy secrets into traces
-- Harness at `{project_cwd}/eval_harness/`; outputs `{project_cwd}/eval_runs/`
+- Harness at `{repo_root}/eval_harness/`; outputs `{repo_root}/eval_runs/`.
+- `project_cwd` is the isolated `workspaces/claude/` directory, separate from the repository root.
 
 ## Steps
 
-1. Confirm Profile: `profiles/claude_code_mock_system.yaml`
+1. Confirm Profile: `configs/profiles/claude.yaml`
 2. If dataset text changed, re-import Bundle:
    ```bash
-   cd {project_cwd}/eval_harness
+   cd {repo_root}/eval_harness
    PYTHONPATH=src python3 -m eval_harness.import_bundle \
      --md data/120题-仅问句版\(1\).md \
      --out bundles/120_prompt_only_v1.jsonl \
@@ -47,16 +48,16 @@ Markdown/xlsx/飞书 layouts are **not** runner input. Import them into a Bundle
 3. Dry-parse Bundle:
    ```bash
    PYTHONPATH=src python3 -m eval_harness.run \
-     --config config.yaml --cases A01,E01 --dry-parse
+     --config configs/runs/claude.yaml --cases A01,E01 --dry-parse
    ```
 4. Smoke:
    ```bash
    PYTHONPATH=src python3 -m eval_harness.run \
-     --config config.yaml --cases A01,E01 --run-id smoke_A01_E01
+     --config configs/runs/claude.yaml --cases A01,E01 --run-id smoke_A01_E01
    ```
 5. Full serial run only after smoke OK:
    ```bash
-   PYTHONPATH=src python3 -m eval_harness.run --config config.yaml --all
+   PYTHONPATH=src python3 -m eval_harness.run --config configs/runs/claude.yaml --all
    ```
 6. Report: run dir, `results.xlsx`, thinking/tool presence, auth/quota errors without secrets
 

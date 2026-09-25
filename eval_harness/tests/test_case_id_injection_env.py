@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(ROOT))
 
-from eval_harness.claude_adapter import case_id_injection_env
+from eval_harness.adapters.claude import case_id_injection_env
 
 
 def test_injects_header_and_body():

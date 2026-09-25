@@ -1,0 +1,19 @@
+# Legacy flat config kept for reference / rollback
+harness: claude_code
+project_cwd: ../../../workspaces/claude
+claude_bin: claude
+agent_md: agent.md
+mcp_config: .mcp.json
+dataset_path: ../../data/120题-仅问句版(1).md
+gold_dataset_path: ../../data/复杂协同与上下文问题集-120题(2).md
+eval_runs_dir: eval_runs
+concurrency: 1
+timeout_sec_per_turn: 300
+permission_mode: bypassPermissions
+dangerously_skip_permissions: true
+append_system_prompt: true
+output_format: stream-json
+verbose: true
+include_partial_messages: true
+extra_args: []
+notes: "Legacy flat config before Bundle/Profile split."

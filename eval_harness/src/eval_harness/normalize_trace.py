@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Optional
 
-from eval_harness.claude_adapter import CaseRunResult, redact_obj
+from eval_harness.adapters.base import CaseRunResult, redact_obj
 
 
 def _preview(obj: Any, n: int = 800) -> str:

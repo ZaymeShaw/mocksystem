@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="/Users/xiaozijian/WorkSpace/package/mock_system"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GATEWAY="$ROOT/llm_gateway"
 INSURANCE_REPO="/Users/xiaozijian/WorkSpace/package/insurance_qa_agent/insurance-qa-agent"
 DUAL_ROOT="$ROOT/eval_runs/dual_datasetA_20260924_150423"
@@ -93,7 +93,7 @@ if [[ -z "$cases" ]]; then
 fi
 cd "$ROOT/eval_harness"
 export PYTHONPATH="$ROOT/eval_harness/src:$GATEWAY"
-exec "$INSURANCE_REPO/.feval_venv/bin/python" -m eval_harness.insurance_qa_adapter \
+exec "$INSURANCE_REPO/.feval_venv/bin/python" -m eval_harness.adapters.insurance \
   --live-batch \
   --resume \
   --cases "$cases" \

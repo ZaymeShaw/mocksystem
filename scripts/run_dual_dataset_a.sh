@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Production dual-eval wrapper → eval_harness.dual_run
+# Production dual-eval wrapper → eval_harness.suite
 # Usage: scripts/run_dual_dataset_a.sh [A01,A02] [-- extra dual_run args]
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -18,4 +18,4 @@ if [[ "$#" -gt 0 ]]; then
   DUAL_ARGS+=("$@")
 fi
 cd "$HARNESS"
-exec env PYTHONPATH=src python3 -m eval_harness.dual_run "${DUAL_ARGS[@]}"
+exec env PYTHONPATH=src python3 -m eval_harness.suite "${DUAL_ARGS[@]}"

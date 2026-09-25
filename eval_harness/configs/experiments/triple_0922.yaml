@@ -1,0 +1,18 @@
+# Triple Claude+Insurance+Pi on shared 0922 (additive).
+# Usage:
+#   PYTHONPATH=src python3 -m eval_harness.suite \
+#     --bundle bundles/120_prompt_only_0922_shared.jsonl \
+#     --claude-config configs/experiments/claude_0922.yaml \
+#     --pi-config configs/experiments/pi_0922_shared.yaml \
+#     --agents claude,insurance,pi \
+#     --cases A01,C20
+# Pi lane uses PI_A01 / PI_C20 (from shared_pi bundle) so gateway ledger does not collide.
+bundle_path: ../../bundles/120_prompt_only_0922_shared.jsonl
+claude_config: claude_0922.yaml
+pi_config: pi_0922_shared.yaml
+pi_bundle: ../../bundles/120_prompt_only_0922_shared_pi.jsonl
+agents: claude,insurance,pi
+pi_remap_prefix: PI_
+notes: >
+  Three-party on shared 0922. Claude cwd=workspaces/claude; Pi cwd=workspaces/pi ITOOLS_AGENT_ID=pi
+  local-relay thinking=off (profile). Do not edit configs/runs/claude.yaml mid-flight.

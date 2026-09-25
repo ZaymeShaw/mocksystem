@@ -7,7 +7,7 @@
 ## 生产 Dual Eval（Claude + Insurance）
 
 **交付入口**：`docs/dual_eval_production.md`  
-命令：`PYTHONPATH=src python3 -m eval_harness.dual_run --bundle … --cases A01,A02`  
+命令：`PYTHONPATH=src python3 -m eval_harness.suite --bundle … --cases A01,A02`
 （或 `scripts/run_dual_dataset_a.sh`）
 
 一次 stamp，两侧落在 `eval_runs/dual_datasetA_<stamp>/{claude,insurance}/`，两侧 runner **自动**发出 `llm_trace.html`。  
@@ -40,9 +40,9 @@
 
 ### 3.1 Claude Code（已有批跑 adapter）
 
-- Profile：`eval_harness/profiles/claude_code_mock_system.yaml`
+- Profile：`eval_harness/configs/profiles/claude.yaml`
 - Adapter 已注入：`ANTHROPIC_CUSTOM_HEADERS` + `CLAUDE_CODE_EXTRA_BODY`，文本标记兜底
-- `ANTHROPIC_BASE_URL` 指向 `:4001`（`sync_mock_run_settings.py` / `mock_run/.claude/settings.local.json`）
+- `ANTHROPIC_BASE_URL` 指向 `:4001`（`sync_claude_settings.py` / `workspaces/claude/.claude/settings.local.json`）
 
 ### 3.2 自研 OpenAI 兼容 Agent（如 insurance_qa_agent / Agno）
 
@@ -52,12 +52,12 @@
 cd /Users/xiaozijian/WorkSpace/package/mock_system/eval_harness
 PYTHONPATH=src \
   /Users/xiaozijian/WorkSpace/package/insurance_qa_agent/insurance-qa-agent/.feval_venv/bin/python \
-  -m eval_harness.insurance_qa_adapter --case-id INS_SMOKE_001
+  -m eval_harness.adapters.insurance --case-id INS_SMOKE_001
 ```
 
-Profile：`profiles/insurance_qa_local_relay.yaml`
+Profile：`configs/profiles/insurance.yaml`
 
-Live batch（自动 HTML，等同 Claude `eval_harness.run` 收尾）：`PYTHONPATH=src python3 -m eval_harness.insurance_qa_adapter --live-batch --cases A01,A02 --run-id insurance_datasetA_<stamp>` → `eval_runs/<run_id>/llm_trace.html`。 **双侧生产对比请用** `eval_harness.dual_run`（见 `docs/dual_eval_production.md`），不要再手搓两套顶层 orphan run_id。
+Live batch（自动 HTML，等同 Claude `eval_harness.run` 收尾）：`PYTHONPATH=src python3 -m eval_harness.adapters.insurance --live-batch --cases A01,A02 --run-id insurance_datasetA_<stamp>` → `eval_runs/<run_id>/llm_trace.html`。 **双侧生产对比请用** `eval_harness.suite`（见 `docs/dual_eval_production.md`），不要再手搓两套顶层 orphan run_id。
 
 业务侧接入（可选，自行改 conf）也能分析：
 
@@ -96,7 +96,7 @@ PYTHONPATH=src python3 -m eval_harness.llm_trace_html \
 当前仓库 `pi-agent/` 为空，**暂不加批跑 adapter**。待有可跑 CLI 时：
 
 1. 先验证：只改 upstream `base_url` + 按案注入 header/body，能否在 `llm_calls` 看到非空 `case_id`
-2. 需要代跑 Bundle 时，再仿 `claude_adapter.py` 做薄 adapter（只负责起停/喂题/注入，不定义分析 schema）
+2. 需要代跑 Bundle 时，再仿 `adapters/claude.py` 做薄 adapter（只负责起停/喂题/注入，不定义分析 schema）
 
 ## 4. 成功标准（Phase 3）
 

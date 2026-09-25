@@ -1,0 +1,16 @@
+schema_version: "1.0"
+profile_id: insurance_qa_local_relay
+harness: insurance_qa_agno
+# HTTP service adapter: no local agent working directory or CLI binary.
+output:
+  eval_runs_dir: ../../../eval_runs
+adapter:
+  chat_url: http://127.0.0.1:18063/v1/chat
+  user_id: "1050900009"
+  timeout_sec: 180
+  lane_id: insurance_1
+  gateway_log: ../../../llm_gateway/logs/llm_calls.jsonl
+  attribution_config: ../../../llm_gateway/attribution_lanes.json
+notes: >
+  Native HTTP batch runner with per-case gateway attribution and HTML export.
+  The Insurance QA service is managed outside this repository.

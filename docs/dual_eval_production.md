@@ -7,7 +7,7 @@
 
 - 以前的 vibe（手搓 `claude_datasetA_*` / `insurance_datasetA_*`、事后 `--from-gateway-log` 补 HTML）会产生孤儿目录与「像产品但其实是补丁」的结果。
 - 生产路径要求：**一次命令、同一 stamp、双侧齐全、HTML 由既有 runner 收尾发出**。
-- 入口：`eval_harness.dual_run`（薄包装 `scripts/run_dual_dataset_a.sh`）。
+- 入口：`eval_harness.suite`（薄包装 `scripts/run_dual_dataset_a.sh`）。
 
 ## 前置条件
 
@@ -17,7 +17,7 @@
 | Insurance LiteLLM | `GET http://127.0.0.1:4002/v1/models` + `INSURANCE_LITELLM_MASTER_KEY` | 不健康时 dual_run 会调 `llm_gateway/start_insurance_litellm.sh` 再检一次 |
 | Insurance QA | `GET http://127.0.0.1:18063/health` | 18063 是评测专用实例；不自动拉起，挂了则 fail-fast |
 | 本地代理 | `trust_env=False` / `NO_PROXY=127.0.0.1,localhost` | 避免系统代理劫持回环 |
-| Claude attribution | `mock_run/.claude/settings.local.json` → `CLAUDE_CODE_ATTRIBUTION_HEADER=1` | 3-block system 需要；dual_run 只读检查并告警 |
+| Claude attribution | `workspaces/claude/.claude/settings.local.json` → `CLAUDE_CODE_ATTRIBUTION_HEADER=1` | 3-block system 需要；dual_run 只读检查并告警 |
 
 **不修改** `insurance-qa-agent` 仓库。
 
@@ -25,7 +25,7 @@
 
 ```bash
 cd /Users/xiaozijian/WorkSpace/package/mock_system/eval_harness
-PYTHONPATH=src python3 -m eval_harness.dual_run \
+PYTHONPATH=src python3 -m eval_harness.suite \
   --bundle bundles/120_prompt_only_v1.jsonl \
   --cases A01,A02
 ```
@@ -40,7 +40,7 @@ PYTHONPATH=src python3 -m eval_harness.dual_run \
 
 1. Preflight（LiteLLM / Insurance）
 2. 创建 `eval_runs/dual_datasetA_<stamp>/`
-3. **Claude**：既有 `eval_harness.run` + `profiles/claude_code_mock_system.yaml`，强制 `eval_runs_dir=<dual_root>`、`run_id=claude` → `…/claude/`（不会落到 `mock_run/eval_runs`）
+3. **Claude**：既有 `eval_harness.run` + `configs/profiles/claude.yaml`，强制 `eval_runs_dir=<dual_root>`、`run_id=claude` → `…/claude/`（不会落到 `workspaces/claude/eval_runs`）
 4. **Insurance**：既有 `run_live_batch`，`eval_runs_dir=<dual_root>`、`run_id=insurance` → `…/insurance/`
 5. 校验两侧 `llm_trace.html` 存在且非空壳；否则 `manifest.status=failed`、进程非 0
 6. 写 `manifest.json`；中途失败仍写 failed manifest，**不删目录**，并明确打印「NOT A SUCCESSFUL PRODUCT」

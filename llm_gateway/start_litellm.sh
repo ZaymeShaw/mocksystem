@@ -120,7 +120,7 @@ if curl -fsS -m 2 "http://${LITELLM_HOST}:${LITELLM_PORT}/v1/models" \
 fi
 
 if [[ "$healthy" -eq 1 && "$FORCE_RESTART" -eq 0 ]]; then
-  python3 "$DIR/sync_mock_run_settings.py"
+  python3 "$DIR/sync_claude_settings.py"
   if ! python3 - "$LLM_ATTRIBUTION_CONFIG" "$DIR/run/litellm.pid" <<'PY'
 import hashlib, json, pathlib, sys
 try:
@@ -177,7 +177,7 @@ if command -v lsof >/dev/null 2>&1; then
   fi
 fi
 
-python3 "$DIR/sync_mock_run_settings.py"
+python3 "$DIR/sync_claude_settings.py"
 : >"$DIR/logs/litellm.stdout.log"
 
 python3 "$DIR/_detach_litellm.py"

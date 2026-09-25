@@ -1,0 +1,4 @@
+# Copy this file and point bundle_path at your own local Dataset Bundle JSONL.
+# Paths are relative to this config, and profile paths are relative to the profile.
+profile_path: ../profiles/claude.yaml
+bundle_path: ../../bundles/example.jsonl

@@ -20,14 +20,11 @@
 /var/
 /llm_gateway/logs/
 /llm_gateway/run/
-/mock_run/backups/
-/mock_run/eval_runs/
-/mock_run/projects/
-/mock_run/session-env/
-/mock_run/sessions/
-/mock_run/shell-snapshots/
-/mock_run/plugins/
-/mock_run/.last-cleanup
+# Every harness workspace can produce local sessions, plugins and auth files.
+# Commit only the reviewed prompt and documentation templates.
+/workspaces/*/*
+!/workspaces/*/agent.md
+!/workspaces/*/README.md
 
 # Local snapshots and packages
 *.bak

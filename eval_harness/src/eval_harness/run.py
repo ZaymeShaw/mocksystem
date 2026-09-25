@@ -18,7 +18,10 @@ except ImportError:
 
 from eval_harness.bundle_io import filter_bundle_cases, load_bundle, to_legacy_case
 from eval_harness.parse_dataset import parse_case_spec
-from eval_harness.adapters import DEFAULT_HARNESS, dispatch_run_case, resolve_harness
+from eval_harness.adapters import (
+    DEFAULT_HARNESS, dispatch_run_batch, dispatch_run_case, get_adapter, resolve_harness,
+)
+from eval_harness.paths import PROJECT_ROOT
 from eval_harness.normalize_trace import build_trace, extract_tool_rows, write_trace
 from eval_harness.excel_export import case_row_from_trace, turn_rows_from_trace, write_results_xlsx
 from eval_harness.llm_trace_html import build_llm_trace_html, pack_run_zip
@@ -33,9 +36,7 @@ from eval_harness.llm_gateway_ingest import (
 from eval_harness.simple_yaml import load_simple_yaml
 
 TZ = ZoneInfo("Asia/Shanghai")
-CURRENT_CASE_ID_FILE = Path(
-    "/Users/xiaozijian/WorkSpace/package/mock_system/llm_gateway/run/current_case_id"
-)
+CURRENT_CASE_ID_FILE = PROJECT_ROOT / "llm_gateway" / "run" / "current_case_id"
 
 
 def _set_current_case_id(case_id: str | None) -> None:
@@ -61,16 +62,16 @@ def _load_mapping(path: Path) -> dict[str, Any]:
 
 
 def _resolve(base: Path, p: str) -> Path:
-    path = Path(p)
+    path = Path(p).expanduser()
     if path.is_absolute():
         return path
     return (base / path).resolve()
 
 
-def _claude_version(claude_bin: str) -> str:
+def _harness_version(harness_bin: str) -> str:
     try:
         out = subprocess.check_output(
-            [claude_bin, "--version"], text=True, stderr=subprocess.STDOUT, timeout=30
+            [harness_bin, "--version"], text=True, stderr=subprocess.STDOUT, timeout=30
         )
         return out.strip().splitlines()[0][:200]
     except Exception as e:
@@ -91,7 +92,7 @@ def _merge_profile(cfg: dict[str, Any], harness_root: Path) -> dict[str, Any]:
     mapped = {
         "harness": profile.get("harness"),
         "project_cwd": profile.get("project_cwd"),
-        "claude_bin": profile.get("bin") or profile.get("claude_bin"),
+        "harness_bin": profile.get("bin") or profile.get("claude_bin"),
         "agent_md": profile.get("agent_md"),
         "mcp_config": profile.get("mcp_config"),
         "permission_mode": profile.get("permission_mode"),
@@ -114,13 +115,17 @@ def _merge_profile(cfg: dict[str, Any], harness_root: Path) -> dict[str, Any]:
         "append_system_prompt", merged.get("append_system_prompt", True)
     )
     mapped["extra_args"] = adapter.get("extra_args", merged.get("extra_args") or [])
-    # Pi (and future) adapter knobs — ignored by Claude adapter via **kwargs omission at call site
-    for _k in ("provider", "model", "thinking", "no_builtin_tools", "approve"):
-        if _k in adapter and adapter.get(_k) is not None:
-            mapped[_k] = adapter.get(_k)
+    # Preserve adapter options so a new harness does not need runner-specific keys.
+    mapped.update(adapter)
+    mapped["_adapter_options"] = dict(adapter)
+    for key in ("gateway_log", "attribution_config"):
+        if adapter.get(key):
+            mapped["_adapter_options"][key] = _resolve(profile_path.parent, adapter[key])
     out = profile.get("output") or {}
     if out.get("eval_runs_dir"):
-        mapped["eval_runs_dir"] = out["eval_runs_dir"]
+        mapped["eval_runs_dir"] = str(_resolve(profile_path.parent, out["eval_runs_dir"]))
+    if profile.get("project_cwd"):
+        mapped["project_cwd"] = str(_resolve(profile_path.parent, profile["project_cwd"]))
     for k, v in mapped.items():
         if v is not None:
             merged[k] = v
@@ -149,7 +154,7 @@ def _resolve_bundle_path(cfg: dict[str, Any], harness_root: Path) -> Path:
 
 def build_arg_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Eval harness runner (Bundle + Profile -> Trace)")
-    p.add_argument("--config", required=True, help="Path to config.yaml")
+    p.add_argument("--config", required=True, help="Path to configs/runs/claude.yaml")
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--all", action="store_true", help="Run all cases in bundle")
     g.add_argument("--cases", type=str, help="Case selector, e.g. A01,E01 or A01-A05")
@@ -361,7 +366,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         # CLI wins over profile (dual_run nesting under eval_runs/dual_*).
         cfg["eval_runs_dir"] = args.eval_runs_dir
 
-    project_cwd = Path(cfg["project_cwd"]).expanduser()
+    harness_name = resolve_harness(cfg.get("harness"))
+    if get_adapter(harness_name).run_case is not None and not cfg.get("project_cwd"):
+        raise SystemExit(f"CLI adapter {harness_name} requires project_cwd in its profile")
+    project_cwd = _resolve(config_path.parent, str(cfg.get("project_cwd") or PROJECT_ROOT))
     if project_cwd.exists():
         project_cwd = project_cwd.resolve()
 
@@ -389,20 +397,40 @@ def main(argv: Optional[list[str]] = None) -> int:
     if not selected:
         raise SystemExit("No cases selected")
 
+    if args.resume and not args.run_id:
+        raise SystemExit("--resume requires --run-id of the interrupted run")
     run_id = args.run_id or _now_tag()
     eval_runs_dir = Path(cfg.get("eval_runs_dir", "eval_runs"))
     if not eval_runs_dir.is_absolute():
         eval_runs_dir = (project_cwd / eval_runs_dir).resolve()
+    harness_name = resolve_harness(cfg.get("harness"))
+    if get_adapter(harness_name).run_batch is not None:
+        if args.rebuild_excel or args.pack_zip:
+            raise SystemExit(f"--rebuild-excel/--pack-zip are unavailable for batch adapter {harness_name}")
+        batch_options = dict(cfg.get("_adapter_options") or {})
+        batch_options.update(
+            bundle_case_ids=[c.case_id for c in selected],
+            bundle_path=bundle_path,
+            run_id=run_id,
+            eval_runs_dir=eval_runs_dir,
+            resume=bool(args.resume),
+        )
+        result = dispatch_run_batch(harness_name, **batch_options)
+        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        ok = (result.get("n_cases", 0) > 0
+              and result.get("n_ok") == result.get("n_cases")
+              and bool(result.get("html_path")) and not result.get("html_error"))
+        return 0 if ok else 2
     run_dir = eval_runs_dir / run_id
     cases_root = run_dir / "cases"
     cases_root.mkdir(parents=True, exist_ok=True)
 
-    claude_bin = cfg.get("claude_bin") or "claude"
-    version = _claude_version(claude_bin)
+    harness_bin = cfg.get("harness_bin") or cfg.get("claude_bin") or "claude"
+    version = _harness_version(harness_bin)
     started_at = datetime.now(TZ).isoformat(timespec="seconds")
 
     print(f"[run] id={run_id} cases={','.join(c.case_id for c in selected)} cwd={project_cwd}")
-    print(f"[run] bin={claude_bin} version={version} harness={cfg.get('harness', DEFAULT_HARNESS)} bundle={bundle_path}")
+    print(f"[run] bin={harness_bin} version={version} harness={harness_name} bundle={bundle_path}")
     print(f"[run] profile={cfg.get('profile_id') or cfg.get('_profile_path')}")
     if args.resume:
         print("[run] resume=1 (skip success=true traces; re-run others)")
@@ -468,9 +496,6 @@ def main(argv: Optional[list[str]] = None) -> int:
             except Exception as e:
                 print(f"[warn] pack_zip failed: {e!r}")
         return 0 if n_ok == n_total and n_total == len(excel_cases) else 2
-
-    if args.resume and not args.run_id:
-        raise SystemExit("--resume requires --run-id of the interrupted run")
 
     case_rows = []
     turn_rows = []
@@ -551,13 +576,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         _set_current_case_id(case.case_id)
         try:
             harness_name = resolve_harness(cfg.get("harness"))
-            result = dispatch_run_case(
-                harness_name,
+            case_options = dict(cfg.get("_adapter_options") or {})
+            case_options.update(
                 case_id=case.case_id,
                 turns=case.turns,
                 case_dir=case_dir,
                 project_cwd=project_cwd,
-                claude_bin=claude_bin,
+                harness_bin=harness_bin,
                 agent_md=cfg.get("agent_md", "agent.md"),
                 permission_mode=cfg.get("permission_mode", "bypassPermissions"),
                 dangerously_skip_permissions=bool(cfg.get("dangerously_skip_permissions", True)),
@@ -574,6 +599,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                 no_builtin_tools=cfg.get("no_builtin_tools", False),
                 approve=cfg.get("approve", True),
             )
+            result = dispatch_run_case(harness_name, **case_options)
             trace = build_trace(result, harness=harness_name)
             # Stamp schema_version for Trace v1 without breaking older consumers
             if isinstance(trace, dict):
@@ -602,7 +628,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             case_windows.append((case.case_id, case_t0, case_t1))
             gw_log = Path(str(cfg.get("llm_gateway_log") or "")).expanduser() if cfg.get("llm_gateway_log") else None
             if gw_log is None or not str(gw_log):
-                gw_log = Path("/Users/xiaozijian/WorkSpace/package/mock_system/llm_gateway/logs/llm_calls.jsonl")
+                gw_log = PROJECT_ROOT / "llm_gateway" / "logs" / "llm_calls.jsonl"
             capture_complete = False
             try:
                 import time as _time

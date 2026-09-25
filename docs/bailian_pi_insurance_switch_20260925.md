@@ -11,7 +11,7 @@ Local keys differ (4002 rejects Claude master key). Upstream keys differ (Bailia
 ## What was switched (additive)
 - `llm_gateway/.env.bailian` + `.env.bailian_openai` (working key from insurance backup; old bak …Uh7w is Arrearage)
 - `start_insurance_litellm.sh --profile` + sticky profile (preflight won't clobber Bailian back to penguin)
-- Pi provider `local-relay-bailian` → :4002; profile `pi_coding_local_relay_bailian.yaml`; config `config_pi_0922_shared_bailian.yaml`
+- Pi provider `local-relay-bailian` → :4002; profile `pi_coding_local_relay_bailian.yaml`; config `configs/experiments/pi_0922_shared_bailian.yaml`
 - Pi thinking remains **off**
 
 ## Run started
@@ -25,9 +25,9 @@ Local keys differ (4002 rejects Claude master key). Upstream keys differ (Bailia
 cd eval_harness
 # ensure :4002 bailian + :18063 up first
 ../llm_gateway/start_insurance_litellm.sh   # sticky bailian_openai
-PYTHONPATH=src python3 -m eval_harness.dual_run \
+PYTHONPATH=src python3 -m eval_harness.suite \
   --bundle bundles/120_prompt_only_0922_shared.jsonl \
-  --pi-config config_pi_0922_shared_bailian.yaml \
+  --pi-config configs/experiments/pi_0922_shared_bailian.yaml \
   --agents insurance,pi --cases A01,A02,... # or full list
 ```
 Do **not** run `start_litellm.sh --profile bailian` while Claude is on :4001.

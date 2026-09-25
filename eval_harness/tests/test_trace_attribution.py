@@ -21,7 +21,7 @@ from eval_harness.llm_gateway_ingest import (
     read_trace_llm_calls, write_case_llm_jsonl,
 )
 from eval_harness.llm_trace_html import build_payload
-from eval_harness import insurance_qa_adapter
+from eval_harness.adapters import insurance as insurance_qa_adapter
 
 
 @pytest.fixture

@@ -34,7 +34,7 @@
 
 | 位置 | 当前行为 | 本次影响 |
 | --- | --- | --- |
-| `eval_harness/src/eval_harness/insurance_qa_adapter.py` 的 `_post_live_chat` | 请求包含 user_id、session_id、stream=false、messages，未携带追踪 ID | 本方案不依赖补传 body.trace_id |
+| `eval_harness/src/eval_harness/adapters/insurance.py` 的 `_post_live_chat` | 请求包含 user_id、session_id、stream=false、messages，未携带追踪 ID | 本方案不依赖补传 body.trace_id |
 | 同文件的 `run_live_batch` | 已保存 prompt.txt、response.json、meta.json 和 cases/<id>.json；包含问题、最终答案、耗时及状态 | 保留已有评测产物，补归属需要的每次执行唯一 ID；不据此新增通用业务采集 |
 | `eval_harness/src/eval_harness/llm_gateway_ingest.py` 的 `filter_pairs_for_case` | 先按前后各扩展 2 秒的窗口筛选；窗口内没有任何 case 标记时，返回窗口内全部调用 | 新执行取消时间窗口归属 |
 | `llm_gateway/callbacks/trace_callback.py` | 记录 pre_api_call、success、failure，并通过 call_id 连接请求和结果 | 扩展首次请求的归属快照，后续事件复用 |
@@ -234,7 +234,7 @@ lane 登记最多让中转知道评测器声明的当前执行身份，不包含
 
 ### 8.2 Insurance 评测器已经持有的数据
 
-当前 `insurance_qa_adapter` 是 `/v1/chat` 的调用方，自己知道发出的用户问题和收到的业务响应。它已保存：
+当前 `adapters/insurance.py` 是 `/v1/chat` 的调用方，自己知道发出的用户问题和收到的业务响应。它已保存：
 
 | 已有产物 | 数据来源 |
 | --- | --- |
@@ -296,7 +296,7 @@ lane 登记最多让中转知道评测器声明的当前执行身份，不包含
 
 预计涉及：
 
-- `eval_harness/src/eval_harness/insurance_qa_adapter.py`
+- `eval_harness/src/eval_harness/adapters/insurance.py`
 - `eval_harness/src/eval_harness/llm_gateway_ingest.py`
 - `eval_harness/src/eval_harness/llm_trace_html.py`
 - `eval_harness/src/eval_harness/dual_run.py`、`run.py` 及相关入口参数（按实际需要）
@@ -346,7 +346,7 @@ lane 登记最多让中转知道评测器声明的当前执行身份，不包含
 | `llm_gateway/logs/llm_calls.jsonl` | 约 874 MiB | 持续追加完整模型调用记录，当前 callback 未提供轮转 |
 | `eval_runs/` | 约 3.2 GiB | 多次跑批、模型 JSONL、trace.json、HTML、Excel 及分享压缩包 |
 | `backups/` | 约 838 MiB | 较早的一次备份带入约 486 MiB 调用日志及虚拟环境 |
-| `mock_run/` | 约 161 MiB | 其中会话历史 projects 约 132 MiB |
+| `workspaces/claude/` | 约 161 MiB | 其中会话历史 projects 约 132 MiB |
 
 当时磁盘可用空间约 2.9 GiB。这里只定位了上述相关目录，不把整盘占用都归因于 Claude 或本项目。
 
